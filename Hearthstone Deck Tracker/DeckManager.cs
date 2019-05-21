@@ -445,8 +445,10 @@ namespace Hearthstone_Deck_Tracker
 				if(newRun)
 				{
 					var hero = Core.Game.Opponent.PlayerEntities.FirstOrDefault(x => x.IsHero)?.CardId;
-					var set = Database.GetCardFromId(hero)?.CardSet;
-					CreateDungeonDeck(playerClass, set ?? CardSet.INVALID);
+					var set = Database.GetCardFromId(hero)?.CardSet ?? CardSet.INVALID;
+					var dungeonInfo = HearthMirror.Reflection.GetDungeonInfo();
+					var deck = dungeonInfo.FirstOrDefault(x => x != null && x.CardSet == (int)set)?.SelectedDeck;
+					CreateDungeonDeck(playerClass, set, deck);
 				}
 				else
 				{
@@ -470,7 +472,7 @@ namespace Hearthstone_Deck_Tracker
 			if(!Config.Instance.DungeonAutoImport)
 				return;
 			Log.Info("Found dungeon run deck!");
-			var allCards = info.DbfIds.ToList();
+			var allCards = info.DbfIds?.ToList() ?? new List<int>();
 			if(info.PlayerChosenLoot > 0)
 			{
 				var loot = new[] { info.LootA, info.LootB, info.LootC };
@@ -483,9 +485,11 @@ namespace Hearthstone_Deck_Tracker
 			var cards = allCards.GroupBy(x => x).Select(x =>
 			{
 				var card = Database.GetCardFromDbfId(x.Key, false);
+				if(card == null)
+					return null;
 				card.Count = x.Count();
 				return card;
-			}).ToList();
+			}).Where(x => x != null).ToList();
 			if(!Config.Instance.DungeonRunIncludePassiveCards)
 				cards.RemoveAll(c => !c.Collectible && c.HideStats);
 			var playerClass = ((CardClass)info.HeroCardClass).ToString().ToUpperInvariant();
